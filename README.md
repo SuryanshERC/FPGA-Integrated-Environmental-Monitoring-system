@@ -6,7 +6,7 @@ It acts as a translator, taking a parallel 8-bit byte and "clocking it out" one 
 
 ---
 
-##  The Timing Logic (The "1 MHz" Math)
+##  The Timing Logic 
 The module is designed to run on a **100 MHz** system clock but communicate at **1 MHz**. To achieve this, it uses a clock divider.
 
 The logic follows this formula:
