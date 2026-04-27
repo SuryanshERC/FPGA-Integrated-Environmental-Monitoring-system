@@ -67,7 +67,7 @@ Instead of using the Vivado GUI "Clocking Wizard," this code manually instantiat
 
 ---
 
-## 🧮 The Clock Synthesis Math
+##  The Clock Synthesis Math
 The MMCM works by using a Voltage Controlled Oscillator (VCO). It divides the input, multiplies it up to a high frequency, and then divides it back down to the target.
 
 The output frequency ($F_{out}$) is calculated using the following formula:
@@ -81,7 +81,7 @@ Plugging in the values from your code:
 
 ---
 
-## 🧱 Component Breakdown
+##  Component Breakdown
 
 ### 1. `MMCME2_BASE`
 This is the hard-IP block inside the FPGA.
@@ -96,10 +96,3 @@ The MMCM requires a feedback path (`CLKFBIN`) to compare the output phase with t
 ### 3. Output Buffer (`bufg_out`)
 The raw output of the MMCM cannot drive thousands of flip-flops directly.
 * The BUFG takes the `clk_out_unbuffered` signal and puts it onto a specialized Global Clock Tree in the FPGA. This ensures the clock reaches every part of the chip at the exact same time (minimizing clock skew).
-
----
-
-## ⚠️ Important Note on Reset
-The reset input is **Active High**. On many development boards, buttons are "Active Low" (pulling to 0V when pressed). If your clock isn't starting, ensure your reset logic matches your physical button configuration. If the MMCM is stuck in reset, the `locked` signal will never go high, and your VGA screen will remain blank.
-
-> Do you need help calculating the parameters for a different resolution, such as 720p (74.25 MHz)?
