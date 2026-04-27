@@ -60,3 +60,46 @@ In **Mode 0** (CPOL=0, CPHA=0), the timing is very specific:
 | `cs` | Output | The "Attention" signal for the peripheral (Active Low). |
 
 > **Note:** This is a **Transmit-Only** master. It does not have a `miso` (Master In Slave Out) pin, meaning it can "talk" to sensors or screens, but it cannot "listen" to them.
+
+This module is a custom clock generator that uses the Xilinx-specific **MMCM (Mixed-Mode Clock Manager)** primitive to synthesize a precise **148.5 MHz** clock from a **100 MHz** source. This is the standard clock frequency required for 1080p @ 60Hz video timing.
+
+Instead of using the Vivado GUI "Clocking Wizard," this code manually instantiates the `MMCME2_BASE` hardware block found inside the Artix-7 or Zynq-7000 FPGA fabric.
+
+---
+
+## 🧮 The Clock Synthesis Math
+The MMCM works by using a Voltage Controlled Oscillator (VCO). It divides the input, multiplies it up to a high frequency, and then divides it back down to the target.
+
+The output frequency ($F_{out}$) is calculated using the following formula:
+
+$$F_{out} = \left( \frac{F_{in}}{DIVCLK\_DIVIDE} \right) \times \frac{CLKFBOUT\_MULT\_F}{CLKOUT0\_DIVIDE\_F}$$
+
+Plugging in the values from your code:
+* **Input Division:** $100\text{ MHz} / 5 = 20\text{ MHz}$ (This is the reference frequency for the Phase-Frequency Detector).
+* **Multiplication (VCO):** $20\text{ MHz} \times 37.125 = 742.5\text{ MHz}$ (The VCO must stay within a specific range, usually 600 MHz–1200 MHz).
+* **Output Division:** $742.5\text{ MHz} / 5 = 148.5\text{ MHz}$.
+
+---
+
+## 🧱 Component Breakdown
+
+### 1. `MMCME2_BASE`
+This is the hard-IP block inside the FPGA.
+* **`CLKIN1_PERIOD`:** Tells the FPGA that the incoming clock is 10ns (100 MHz).
+* **`BANDWIDTH`:** Set to "OPTIMIZED" to allow the MMCM to balance jitter and phase noise automatically.
+* **`LOCKED`:** This output is crucial. It stays low while the clock is unstable and turns high only when the frequency is locked and safe to use for logic.
+
+### 2. Feedback Loop (`bufg_fb`)
+The MMCM requires a feedback path (`CLKFBIN`) to compare the output phase with the input phase.
+* By passing the feedback through a **BUFG** (Global Clock Buffer), the MMCM compensates for the internal delay of the clock distribution network, ensuring the output is phase-aligned.
+
+### 3. Output Buffer (`bufg_out`)
+The raw output of the MMCM cannot drive thousands of flip-flops directly.
+* The BUFG takes the `clk_out_unbuffered` signal and puts it onto a specialized Global Clock Tree in the FPGA. This ensures the clock reaches every part of the chip at the exact same time (minimizing clock skew).
+
+---
+
+## ⚠️ Important Note on Reset
+The reset input is **Active High**. On many development boards, buttons are "Active Low" (pulling to 0V when pressed). If your clock isn't starting, ensure your reset logic matches your physical button configuration. If the MMCM is stuck in reset, the `locked` signal will never go high, and your VGA screen will remain blank.
+
+> Do you need help calculating the parameters for a different resolution, such as 720p (74.25 MHz)?
